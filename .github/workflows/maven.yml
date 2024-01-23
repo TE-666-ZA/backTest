@@ -1,0 +1,49 @@
+name: Maven Package
+
+on:
+  push:
+    branches:
+      - backTest
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up JDK 17 for build
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
+        settings-path: ${{ github.workspace }} # location for the settings.xml file
+
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
+
+    - name: Publish to GitHub Packages Apache Maven
+      run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+  save_build_result:
+
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # Assuming that the Maven build outputs to a 'target' directory
+    - name: Save build result to testBuild branch
+      run: |
+        git checkout -b testBuild
+        git add target/
+        git commit -m "Add build result from backTest branch"
+        git push origin testBuild
